@@ -34,9 +34,7 @@
 package com.gskinner.motion;
 	
 	import com.gskinner.motion.GTween;
-	#if flash
-	//import flash.utils.Dictionary;
-	#end
+	
 	/**
 	* <b>GTweenTimeline ©2008 Grant Skinner, gskinner.com. Visit www.gskinner.com/libraries/gtween/ for documentation, updates and more free code. Licensed under the MIT license - see the source file header for more information.</b>
 	* <hr>
@@ -56,7 +54,6 @@ package com.gskinner.motion;
 		* @param value The value to assign to the property.
 		**/
 		public static function setPropertyValue(target:Dynamic,propertyName:String,value:Dynamic):Void {
-			//target[propertyName] = value;
 			Reflect.setField(target,propertyName,value);
 		}
 		
@@ -105,7 +102,6 @@ package com.gskinner.motion;
 		}
 		
 	// public getter / setters:
-		//override public function set position(value:Float):Void {
 		override public function setPosition(value:Float):Float {
 			// delay event callbacks until we're done:
 			var tmpSuppressEvents:Bool = suppressEvents;
@@ -153,9 +149,7 @@ package com.gskinner.motion;
 			tween.paused = true;
 			var index:Int = -1;
 			while (++index < tweens.length && tweenStartPositions[index] < position) { }
-			//tweens.splice(index,0,tween);
 			tweens.insert(index,tween);
-			//tweenStartPositions.splice(index,0,position);
 			tweenStartPositions.insert(index,position);
 			tween.position = calculatedPosition-position;
 		}
@@ -168,13 +162,13 @@ package com.gskinner.motion;
 		public function addTweens(tweens:Array<Dynamic>):Void { 
 			if (tweens == null) { return; }
 			if(tweens.length%2!=0){
-				// TODO:: throw error regarding no match
+				throw "addTweens should have alternating positions and tweens in Array argument";
 			}
-			for (i in 0...Math.floor(tweens.length*0.5)) {	//var i:uint=0; i<tweens.length; i+=2) {
+			for (i in 0...Math.floor(tweens.length*0.5)) {
 				if(Std.is(tweens[i*2],Float) && Std.is(tweens[i*2+1], GTween)){
 					addTween(tweens[i*2], cast( tweens[i*2+1], GTween));
 				}else{
-					// TODO:: throw error regarding incorrect types
+					throw "addTweens should have alternating positions and tweens in Array argument";
 				}
 			}
 		}
@@ -186,7 +180,7 @@ package com.gskinner.motion;
 		* @param tween The GTween instance to remove.
 		**/
 		public function removeTween(tween:GTween):Void {
-			//for(var i:int=tweens.length; i>=0; i--) {
+			//increment in reverse order
 			var i2:Int;
 			for(i in 0...tweens.length){
 				i2=tweens.length-(i+1);
@@ -204,7 +198,6 @@ package com.gskinner.motion;
 		* @param label The label to add.
 		**/
 		public function addLabel(position:Float,label:String):Void {
-			//labels[label] = position;
 			labels.set(label,position);
 		}
 		
@@ -214,7 +207,6 @@ package com.gskinner.motion;
 		* @param label The label to remove.
 		**/
 		public function removeLabel(label:String):Void {
-			//delete(labels[label]);
 			labels.remove(label);
 		}
 		
@@ -236,17 +228,20 @@ package com.gskinner.motion;
 		* @param reverseParameters Optional array of parameters to pass to the callback when it is called when playing in reverse.
 		**/
 		public function addCallback(labelOrPosition:Dynamic, forwardCallback:Dynamic, ?forwardParameters:Array<Dynamic>=null, ?reverseCallback:Dynamic=null, ?reverseParameters:Array<Dynamic>=null):Void {
+			
 			var position:Float = resolveLabelOrPosition(labelOrPosition);
+			
 			if (Math.isNaN(position)) { return; }
+			
 			var call:Callback = new Callback(position, forwardCallback, forwardParameters, reverseCallback, reverseParameters);
 			var i:Int=callbacks.length-1;
+			
 			while(i>=0){
 				if (position > callbacks[i].position) { 
 					break; 
 				}
 				i--;
 			}
-			
 			callbacks.insert(i+1,call);
 		}
 		
@@ -257,10 +252,13 @@ package com.gskinner.motion;
 		* @param labelOrPosition The position of the callback(s) to remove in frames or seconds (as per the timing mode of this tween).
 		**/
 		public function removeCallback(labelOrPosition:Dynamic):Void {
+		
 			var position:Float = resolveLabelOrPosition(labelOrPosition);
+		
 			if (Math.isNaN(position)) { return; }
+		
 			var l:Int = callbacks.length;
-			//for (var i:int = 0; i<l; i++) {
+
 			for(i in 0...callbacks.length){
 				if (position == callbacks[i].position) {
 					callbacks.splice(i,1);
@@ -305,7 +303,6 @@ package com.gskinner.motion;
 		* @param labelOrPosition The label name or numeric position in frames or seconds (as per the timing mode of this tween) to resolve.
 		**/
 		public function resolveLabelOrPosition(labelOrPosition:Dynamic):Float {
-			//return (isNaN(labelOrPosition)) ? labels[String(labelOrPosition)] : labelOrPosition;
 			return (Math.isNaN(labelOrPosition)) ? labels.get(cast(labelOrPosition,String)) : cast(labelOrPosition,Float);
 		}
 		
@@ -317,7 +314,6 @@ package com.gskinner.motion;
 			if (callbacks.length > 0) {
 				d = callbacks[callbacks.length-1].position;
 			}
-			//for (var i:int=0; i<tweens.length; i++) {
 			for( i in 0...tweens.length ) {
 				if (tweens[i].duration+tweenStartPositions[i] > d) {
 					d = tweens[i].duration+tweenStartPositions[i];

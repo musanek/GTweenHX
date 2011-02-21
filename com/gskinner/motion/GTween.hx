@@ -34,19 +34,20 @@
 
 package com.gskinner.motion;
 	
-	import flash.display.Shape;
-	import flash.events.EventDispatcher;
-	import flash.events.Event;
-	
-	import haxe.Timer;
-	import flash.events.IEventDispatcher;
-	import com.gskinner.motion.plugins.IGTweenPlugin;
-	import Std;
-	import Reflect;
-	
 	#if flash
 	import flash.utils.Dictionary;
+	import flash.display.Shape;
 	#end
+	
+	import flash.events.Event;
+	import flash.events.EventDispatcher;
+	import flash.events.IEventDispatcher;
+	
+	import Std;
+	import Reflect;
+	import haxe.Timer;
+	
+	import com.gskinner.motion.plugins.IGTweenPlugin;
 	
 	/**
 	* <b>GTween Â©2008 Grant Skinner, gskinner.com. Visit www.gskinner.com/libraries/gtween/ for documentation, updates and more free code. Licensed under the MIT license - see the source file header for more information.</b>
@@ -148,7 +149,7 @@ package com.gskinner.motion;
 		/** @private **/
 		private static var plugins:Hash<Dynamic>;
 		/** @private **/
-		private static var ticker:Shape;
+		private static var ticker:IEventDispatcher;//Shape;
 		/** @private **/
 		private static var time:Float;
 		/** @private **/
@@ -202,10 +203,17 @@ package com.gskinner.motion;
 		
 		/** @private **/
 		private static function staticInit():Void {
+			
 			if(!_sInited){
+			#if flash
 				(ticker = new Shape()).addEventListener(Event.ENTER_FRAME,staticTick);
-				time = Timer.stamp();//time = getTimer()/1000;
+				time = Timer.stamp();
 				_sInited=true;
+			#elseif js
+				throw "When using GTween with JS, you must attach an IEventDispatcher via GTween.patchTick()";
+			#elseif cpp
+				throw "When using GTween with HXCPP, you must attach an IEventDispatcher via GTween.patchTick()";
+			#end
 			}
 		}
 		
@@ -213,7 +221,7 @@ package com.gskinner.motion;
 		/** Shapes in Jeash and NME do not dispatch ENTER_FRAME events unless
 		attached to the Stage. Calling this function with a shape that is display
 		listed with patch in the requisite tick. **/
-		public static function patchTick(s:Shape):Void{
+		public static function patchTick(s:IEventDispatcher):Void{
 			#if !flash
 			if(!_sInited){
 				ticker=s;
@@ -491,7 +499,7 @@ package com.gskinner.motion;
 			_paused = value;
 			if (_paused) {
 				tickList.remove(_hashKey);
-				if (Std.is(target,IEventDispatcher))  { target.removeEventListener("_", invalidate); }
+				if (target!=null && Std.is(target,IEventDispatcher))  { target.removeEventListener("_", invalidate); }
 			} else {
 				if (Math.isNaN(_position) || (repeatCount != 0 && _position >= repeatCount*duration)) {
 					// reached the end, reset.
@@ -502,7 +510,7 @@ package com.gskinner.motion;
 				tickList.set(_hashKey,this);//tickList[this] = true;
 				
 				// prevent garbage collection:
-				if (Std.is(target,IEventDispatcher)) { target.addEventListener("_", invalidate); } 
+				if (target!=null && Std.is(target,IEventDispatcher)) { target.addEventListener("_", invalidate); } 
 			}
 			return _paused;
 		}
