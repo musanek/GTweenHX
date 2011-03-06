@@ -33,15 +33,19 @@
 **/
 
 package com.gskinner.motion;
-	
-	#if flash
-	import flash.utils.Dictionary;
+
+	#if flash9
+	import flash.utils.TypedDictionary;
 	import flash.display.Shape;
 	#end
 	
+	#if flash8
+	import flash.MovieClip;
+	#else
 	import flash.events.Event;
 	import flash.events.EventDispatcher;
 	import flash.events.IEventDispatcher;
+	#end
 	
 	import Std;
 	import Reflect;
@@ -101,15 +105,17 @@ package com.gskinner.motion;
 	* <LI> fixed issue with callbacks being called again when a timeline completes. (thanks to edzis for the bug report)
 	* </UL>
 	**/
-	class GTween extends EventDispatcher {
+	class GTween #if !flash8 extends EventDispatcher #end {
 		
 	// Constants:
+	#if !flash9
 	#if !neko
 	inline static var INT_MX:Int=2147483647;
 	inline static var INT_MN:Int=-2147483647;
 	#else
 	inline static var INT_MX:Int=134217727;	//neko only has 31-bit precision Int
 	inline static var INT_MN:Int=-134217727;
+	#end
 	#end
 		
 	// Static interface:
@@ -149,16 +155,23 @@ package com.gskinner.motion;
 		/** @private **/
 		private static var plugins:Hash<Dynamic>;
 		/** @private **/
+		#if flash8
+		private static var ticker:MovieClip;
+		#else
 		private static var ticker:IEventDispatcher;//Shape;
+		#end
 		/** @private **/
 		private static var time:Float;
 		/** @private **/
+		#if flash9
+		private static var tickList:TypedDictionary<GTween,Bool>;
+		private static var gcLockList:TypedDictionary<GTween,Bool>;
+		#else
 		private static var tickList:IntHash<GTween>;
-		/** @private **/
-		//private static var gcLockList:IntHash;//Dictionary;// = new Dictionary(false);
-		/** @private **/
+		private static var gcLockList:IntHash<GTween>;
 		private static var keyMarker:Int;
-		
+		#end
+				
 		private static var _sInited:Bool;
 		
 		
@@ -206,7 +219,12 @@ package com.gskinner.motion;
 			
 			if(!_sInited){
 			#if flash
+			#if flash9
 				(ticker = new Shape()).addEventListener(Event.ENTER_FRAME,staticTick);
+			#elseif flash8
+				ticker = flash.Lib._root.createEmptyMovieClip("GTweenTicker",-1001);
+				ticker.onEnterFrame=staticTick;
+			#end
 				time = Timer.stamp();
 				_sInited=true;
 			#elseif js
@@ -221,16 +239,17 @@ package com.gskinner.motion;
 		/** Shapes in Jeash and NME do not dispatch ENTER_FRAME events unless
 		attached to the Stage. Calling this function with a shape that is display
 		listed with patch in the requisite tick. **/
+		
+		#if !flash
 		public static function patchTick(s:IEventDispatcher):Void{
-			#if !flash
 			if(!_sInited){
 				ticker=s;
 				s.addEventListener(Event.ENTER_FRAME,staticTick);
 				time = Timer.stamp();
 				_sInited=true;
-			}
-			#end
+			}			
 		}
+		#end
 		
 		
 		/**Called prior to any other static calls; setup at compile time**/
@@ -242,31 +261,40 @@ package com.gskinner.motion;
 
 			//static private default values
 			plugins=new Hash<Dynamic>();
+			#if flash9
+			tickList = new TypedDictionary<GTween,Bool>(true);
+			gcLockList = new TypedDictionary<GTween,Bool>(false);
+			#else
 			tickList= new IntHash();
+			gcLockList = new IntHash();
 			keyMarker=INT_MN;
+			#end
 		}
 		
 		/** @private **/
-		private static function staticTick(evt:Event):Void {
+		private static function staticTick( #if !flash8 evt:Event #end ):Void {
 			var t:Float = time;
 			time = Timer.stamp();
 			if (pauseAll) { return; }
 			var dt:Float = (time-t)*timeScaleAll;
-			for(tween in tickList){	
+			
+			for(tween in tickList){	//works with both IntHash & TypedDictionary!
 				tween.position = tween._position+(tween.useFrames?timeScaleAll:dt)*tween.timeScale;
 			}
 		}
 		
+		#if !flash9
 		private static function uniqueKey():Int{
 			while(keyMarker<INT_MX){
 				keyMarker++;
-				if(!tickList.exists(keyMarker)){
+				if(!gcLockList.exists(keyMarker)){
 					return keyMarker;
 				}
 			}
 			keyMarker=INT_MN;
 			return uniqueKey();
 		}
+		#end
 		
 	// Public Properties:
 		
@@ -445,7 +473,9 @@ package com.gskinner.motion;
 		* @param pluginData An object containing data for installed plugins to use with this tween. See <code>.pluginData</code> for more information.
 		**/
 		public function new(?target : Dynamic = null, ?duration : Float = 1, ?values : Dynamic = null, ?props : Dynamic = null, ?pluginData : Dynamic = null) {
+			#if !flash8 
 			super();
+			#end
 			/////
 			//Haxe does not allow variable instantiation prior to constructor
 			/////
@@ -455,12 +485,17 @@ package com.gskinner.motion;
 			repeatCount=1;
 			timeScale=1;
 			//////
-			//Get unique IntHash Key
-			_hashKey=uniqueKey();
-			//////
+			#if flash //jeash & nme use GTween.tickPatch 
 			if(!_sInited)
 				staticInit();
+			#end
 			//////
+			//Get unique key for IntHash (Dictionary replacement)
+			#if !flash9
+			_hashKey=uniqueKey();
+			#end
+			//////
+			
 			ease = defaultEase;
 			dispatchEvents = defaultDispatchEvents;
 			this.target = target;
@@ -496,10 +531,22 @@ package com.gskinner.motion;
 		}
 		public function setPaused(value:Bool):Bool {
 			if (value == _paused) { return _paused; }
+			
 			_paused = value;
 			if (_paused) {
+				#if flash9
+				tickList.delete(this);	
+				#else
 				tickList.remove(_hashKey);
+				#end
+				#if !flash8
 				if (target!=null && Std.is(target,IEventDispatcher))  { target.removeEventListener("_", invalidate); }
+				#end
+				#if flash9
+				gcLockList.delete(this);
+				#else
+				gcLockList.remove(_hashKey);
+				#end
 			} else {
 				if (Math.isNaN(_position) || (repeatCount != 0 && _position >= repeatCount*duration)) {
 					// reached the end, reset.
@@ -507,10 +554,21 @@ package com.gskinner.motion;
 					calculatedPosition = calculatedPositionOld = ratio = ratioOld = positionOld = 0;
 					_position = -delay;
 				}
-				tickList.set(_hashKey,this);//tickList[this] = true;
-				
+				#if flash9
+				untyped	tickList[this]=true;
+				#else
+				tickList.set(_hashKey,this);
+				#end
 				// prevent garbage collection:
+				#if !flash8
 				if (target!=null && Std.is(target,IEventDispatcher)) { target.addEventListener("_", invalidate); } 
+				else
+				#end
+				#if flash9
+				untyped	gcLockList[this]=true;
+				#else
+				gcLockList.set(_hashKey,this);
+				#end
 			}
 			return _paused;
 		}
@@ -583,14 +641,18 @@ package com.gskinner.motion;
 			}
 			
 			if (!suppressEvents) {
+				#if !flash8
 				if (dispatchEvents) { dispatchEvt("change"); }
+				#end
 				if (onChange != null) { onChange(this); }
 			}
 			if (end) {
 				paused = true;
 				if (nextTween!=null) { nextTween.paused = false; }
 				if (!suppressEvents) {
+					#if !flash8
 					if (dispatchEvents) { dispatchEvt("complete"); }
+					#end
 					if (onComplete != null) { onComplete(this); }
 				}
 			}
@@ -776,7 +838,7 @@ package com.gskinner.motion;
 				if(plugins.exists(n)){
 					pluginArr = plugins.get(n);
 					var value:Float;
-					#if flash
+					#if flash9
 						value = Reflect.hasField(target,n)?Reflect.field(target,n):Math.NaN; //this works with BlurPlugin in Flash
 					#else
 						value = Reflect.field(target,n); //this works with AutoHidePlugin in CPP
@@ -802,7 +864,9 @@ package com.gskinner.motion;
 			}
 			
 			if (!suppressEvents) {
+				#if !flash8
 				if (dispatchEvents) { dispatchEvt("init"); }
+				#end
 				if (onInit != null) { onInit(this); }
 			}
 		}
@@ -867,12 +931,14 @@ package com.gskinner.motion;
 		}
 		
 		/** @private **/
+		#if !flash8
 		private function dispatchEvt(name:String):Void {
 			if (hasEventListener(name)) { dispatchEvent(new Event(name)); }
 		}
+		#end
 	}
 
-#if flash
+#if flash9
 
 /**
 * Still working on proxy feature. This will be Flash only.

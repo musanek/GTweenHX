@@ -32,14 +32,14 @@
 **/
 package com.gskinner.motion;
 	
-	#if flash
-	import flash.utils.Dictionary;
+	#if flash9
+	import flash.utils.TypedDictionary;
 	#end
 	import com.gskinner.motion.GTween;
 	import com.gskinner.motion.plugins.IGTweenPlugin;
 	
 	/**
-	* <b>GTweener ©2009 Grant Skinner, gskinner.com. Visit www.gskinner.com/libraries/gtween/ for documentation, updates and more free code. Licensed under the MIT license - see the source file header for more information.</b>
+	* <b>GTweener ï¿½2009 Grant Skinner, gskinner.com. Visit www.gskinner.com/libraries/gtween/ for documentation, updates and more free code. Licensed under the MIT license - see the source file header for more information.</b>
 	* <hr>
 	* GTweener is an experimental class that provides a static interface and basic
 	* override management for GTween. It adds about 1kb to GTween. With GTweener, if you tween a value that is
@@ -56,8 +56,8 @@ package com.gskinner.motion;
 		
 	// Protected Static Properties:
 		/** @private **/
-		#if flash
-			private static var tweens:Dictionary;
+		#if flash9
+			private static var tweens:TypedDictionary<Dynamic,Array<GTween>>;
 		#else
 			private static var tweens:NaiveDictionary;
 		#end
@@ -75,8 +75,8 @@ package com.gskinner.motion;
 			GTween.installPlugin(instance, ["*"]);
 		}*/
 		static function __init__() {
-			#if flash
-			tweens = new Dictionary(true);
+			#if flash9
+			tweens = new TypedDictionary<Dynamic,Array<GTween>>(true);
 			#else
 			tweens = new NaiveDictionary();
 			#end
@@ -132,10 +132,10 @@ package com.gskinner.motion;
 			var list:Array<GTween>;
 			
 			//get tweens from Object keyed based hash
-			#if flash
-			 untyped list = tweens[target];
+			#if flash9
+			 list = tweens.get(target);
 			#else
-			 list = tweens.getValue(target);
+			list = tweens.getValue(target);
 			#end
 			
 			if (list!=null) {
@@ -143,10 +143,10 @@ package com.gskinner.motion;
 			} else {
 				list = new Array<GTween>();
 
-				#if flash
-				untyped	tweens[target]=list;
+				#if flash9
+				tweens.set(target,list);
 				#else
-					tweens.setValue(target,list);
+				tweens.setValue(target,list);
 				#end
 			}
 			list[list.length]=tween;
@@ -159,8 +159,8 @@ package com.gskinner.motion;
 		**/
 		public static function getTween(target:Dynamic, name:String):GTween {
 			var list:Array<GTween>;
-			#if flash
-			untyped list = tweens[target];
+			#if flash9
+			list = tweens.get(target);
 			#else
 			list = tweens.getValue(target);
 			#end
@@ -178,10 +178,10 @@ package com.gskinner.motion;
 		**/
 		public static function getTweens(target:Dynamic):Array<GTween> {
 			var list:Array<GTween>;
-			#if flash
-			untyped	list = tweens[target];
+			#if flash9
+			list = tweens.get(target);
 			#else
-				list = tweens.getValue(target);
+			list = tweens.getValue(target);
 			#end
 			return list!=null?list:new Array<GTween>();
 		}
@@ -191,8 +191,8 @@ package com.gskinner.motion;
 		**/
 		public static function pauseTweens(target:Dynamic,?paused:Bool=true):Void {
 			var list:Array<GTween>;
-			#if flash
-			untyped list = tweens[target];
+			#if flash9
+			list = tweens.get(target);
 			#else
 			list = tweens.getValue(target);
 			#end
@@ -205,7 +205,7 @@ package com.gskinner.motion;
 		/**
 		* Resumes all tweens that GTweener is managing for the specified target.
 		**/
-		public static function resumeTweens(target:Dynamic):Void {
+		inline public static function resumeTweens(target:Dynamic):Void {
 			pauseTweens(target,false);
 		}
 		
@@ -215,17 +215,17 @@ package com.gskinner.motion;
 		public static function remove(tween:GTween):Void {
 			tween.pluginData.GTweener=null;
 			var list:Array<GTween>;
-			#if flash
-			untyped	list = tweens[tween.target];
+			#if flash9
+			list = tweens.get(tween.target);
 			#else
-				list = tweens.getValue(tween.target);
+			list = tweens.getValue(tween.target);
 			#end
 			
 			if(list==null){ return; }
 			
 			for( i in 0...list.length){
 				if(list[i] == tween){
-					#if !flash	//remove reference to object
+					#if !flash9	//remove reference to object
 						if(list.length==1){tweens.remove(tween.target);}
 					#end
 					list.splice(i,1);
@@ -240,20 +240,20 @@ package com.gskinner.motion;
 		public static function removeTweens(target:Dynamic):Void {
 			pauseTweens(target);
 			var list:Array<GTween>;
-			#if flash
-			untyped	list=tweens[target];
+			#if flash9
+			list = tweens.get(target);
 			#else
-				list=tweens.getValue(target);
+			list=tweens.getValue(target);
 			#end
 			if (list == null) { return; }
 			for( i in 0...list.length){
 				list[i].pluginData.GTweener=null;
-				#if !flash
+				#if !flash9
 				list[i].pluginData.GTweenerCallback=null;
 				#end
 			}
-			#if flash
-			untyped __delete__(tweens,target);	//	delete(tweens[target]);
+			#if flash9
+			tweens.delete(target);
 			#else
 			tweens.remove(target);
 			#end
@@ -269,21 +269,21 @@ package com.gskinner.motion;
 		}
 	}
 	
-	#if !flash
+	#if !flash9
 	/** 
 	* Since JS & CPP currently have no Dictionary, use a hash
 	* based lookup. Deallocation is handled by the 'remove' 
 	* function of GTweener.
 	**/
 	class NaiveDictionary{
-		#if js
+		#if (js || flash8)
 		private var _hash:Hash<Dynamic>;
 		#elseif cpp
 		private var _hash:IntHash<Dynamic>;
 		#end
 		
 		public function new(){
-			#if js
+			#if (js || flash8)
 			_hash = new Hash<Dynamic>();
 			#elseif cpp
 			_hash = new IntHash<Dynamic>();
@@ -291,7 +291,7 @@ package com.gskinner.motion;
 		}
 		
 		public function getValue(key:Dynamic):Dynamic{
-			#if js
+			#if (js || flash8)
 			return _hash.get(key.toString());
 			#elseif cpp
 			var i:Int = untyped __global__.__hxcpp_obj_id(key);
@@ -300,7 +300,7 @@ package com.gskinner.motion;
 		}
 		
 		public function setValue(key:Dynamic,value:Dynamic):Void{
-			#if js
+			#if (js || flash8)
 			_hash.set(key.toString(),value);
 			#elseif cpp
 			var i:Int = untyped __global__.__hxcpp_obj_id(key);
@@ -309,7 +309,7 @@ package com.gskinner.motion;
 		}
 		
 		public function remove(key:Dynamic):Void{
-			#if js
+			#if (js || flash8)
 			_hash.remove(key.toString());
 			#elseif cpp
 			var i:Int = untyped __global__.__hxcpp_obj_id(key);
