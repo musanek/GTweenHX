@@ -41,10 +41,16 @@ package com.gskinner.motion;
 	
 	#if flash8
 	import flash.MovieClip;
+	#elseif (js && easelhx)
+	import easelhx.utils.Ticker;
 	#else
 	import flash.events.Event;
 	import flash.events.EventDispatcher;
 	import flash.events.IEventDispatcher;
+	#end
+	
+	#if (js && !easelhx)	//jeash
+	import com.gskinner.motion.plugins.jeash.JeashDisplayObjectPlugin;
 	#end
 	
 	import Std;
@@ -105,7 +111,7 @@ package com.gskinner.motion;
 	* <LI> fixed issue with callbacks being called again when a timeline completes. (thanks to edzis for the bug report)
 	* </UL>
 	**/
-	class GTween #if !flash8 extends EventDispatcher #end {
+	class GTween #if (!flash8 && !(js && easelhx)) extends EventDispatcher #end {
 		
 	// Constants:
 	#if !flash9
@@ -131,7 +137,9 @@ package com.gskinner.motion;
 		/**
 		* Sets the default value of dispatchEvents for new instances.
 		**/
+		#if !(js && easelhx)
 		public static var defaultDispatchEvents:Bool;//=false;
+		#end
 		
 		/**
 		* Specifies the default easing function to use with new tweens. Set to GTween.linearEase by default.
@@ -157,7 +165,7 @@ package com.gskinner.motion;
 		/** @private **/
 		#if flash8
 		private static var ticker:MovieClip;
-		#else
+		#elseif !(js && easelhx) //Ticker is static in easel
 		private static var ticker:IEventDispatcher;//Shape;
 		#end
 		/** @private **/
@@ -216,37 +224,42 @@ package com.gskinner.motion;
 		
 		/** @private **/
 		private static function staticInit():Void {
-			
 			if(!_sInited){
-			#if flash
+			#if (flash || (js && easelhx)) 
 			#if flash9
 				(ticker = new Shape()).addEventListener(Event.ENTER_FRAME,staticTick);
 			#elseif flash8
 				ticker = flash.Lib._root.createEmptyMovieClip("GTweenTicker",-1001);
 				ticker.onEnterFrame=staticTick;
+			#elseif (js && easelhx)
+				Ticker.addListener(GTween);
 			#end
 				time = Timer.stamp();
 				_sInited=true;
-			#elseif js
-				throw "When using GTween with JS, you must attach an IEventDispatcher via GTween.patchTick()";
+			#elseif (js && !easelhx)
+				throw "When using GTween with Jeash, you must attach an IEventDispatcher via GTween.patchTick()";
 			#elseif cpp
 				throw "When using GTween with HXCPP, you must attach an IEventDispatcher via GTween.patchTick()";
 			#end
 			}
 		}
 		
-		
 		/** Shapes in Jeash and NME do not dispatch ENTER_FRAME events unless
 		attached to the Stage. Calling this function with a shape that is display
 		listed with patch in the requisite tick. **/
 		
-		#if !flash
-		public static function patchTick(s:IEventDispatcher):Void{
+		#if !(flash || (js && easelhx))
+		public static function patchTick(s:  IEventDispatcher):Void{
 			if(!_sInited){
 				ticker=s;
 				s.addEventListener(Event.ENTER_FRAME,staticTick);
 				time = Timer.stamp();
 				_sInited=true;
+				
+				//now install any compatability plugins
+				#if js	//jeash
+				JeashDisplayObjectPlugin.install();
+				#end
 			}			
 		}
 		#end
@@ -272,7 +285,11 @@ package com.gskinner.motion;
 		}
 		
 		/** @private **/
+		#if(js && easelhx)
+		private static function tick():Void {
+		#else
 		private static function staticTick( #if !flash8 evt:Event #end ):Void {
+		#end
 			var t:Float = time;
 			time = Timer.stamp();
 			if (pauseAll) { return; }
@@ -431,7 +448,9 @@ package com.gskinner.motion;
 		* <br/><br/>
 		* By default this will use the value of defaultDispatchEvents.
 		**/
+		#if !(js && easelhx)
 		public var dispatchEvents:Bool;
+		#end
 		
 		/**
 		* Callback for the complete event. Any function assigned to this callback
@@ -473,7 +492,7 @@ package com.gskinner.motion;
 		* @param pluginData An object containing data for installed plugins to use with this tween. See <code>.pluginData</code> for more information.
 		**/
 		public function new(?target : Dynamic = null, ?duration : Float = 1, ?values : Dynamic = null, ?props : Dynamic = null, ?pluginData : Dynamic = null) {
-			#if !flash8 
+			#if !(flash8 || (js && easelhx)) 
 			super();
 			#end
 			/////
@@ -485,9 +504,11 @@ package com.gskinner.motion;
 			repeatCount=1;
 			timeScale=1;
 			//////
-			#if flash //jeash & nme use GTween.tickPatch 
-			if(!_sInited)
+			#if (flash || (js && easelhx)) //jeash & nme use GTween.tickPatch 
+			
+			if(!_sInited){
 				staticInit();
+			}
 			#end
 			//////
 			//Get unique key for IntHash (Dictionary replacement)
@@ -497,7 +518,9 @@ package com.gskinner.motion;
 			//////
 			
 			ease = defaultEase;
+			#if !(js && easelhx)
 			dispatchEvents = defaultDispatchEvents;
+			#end
 			this.target = target;
 			this.duration = duration;
 			this.pluginData = copy(pluginData,{});
@@ -539,7 +562,7 @@ package com.gskinner.motion;
 				#else
 				tickList.remove(_hashKey);
 				#end
-				#if !flash8
+				#if !(flash8 || (js && easelhx)) 
 				if (target!=null && Std.is(target,IEventDispatcher))  { target.removeEventListener("_", invalidate); }
 				#end
 				#if flash9
@@ -560,7 +583,7 @@ package com.gskinner.motion;
 				tickList.set(_hashKey,this);
 				#end
 				// prevent garbage collection:
-				#if !flash8
+				#if !(flash8 || (js && easelhx))
 				if (target!=null && Std.is(target,IEventDispatcher)) { target.addEventListener("_", invalidate); } 
 				else
 				#end
@@ -641,7 +664,7 @@ package com.gskinner.motion;
 			}
 			
 			if (!suppressEvents) {
-				#if !flash8
+				#if !(flash8 || (js && easelhx))
 				if (dispatchEvents) { dispatchEvt("change"); }
 				#end
 				if (onChange != null) { onChange(this); }
@@ -650,7 +673,7 @@ package com.gskinner.motion;
 				paused = true;
 				if (nextTween!=null) { nextTween.paused = false; }
 				if (!suppressEvents) {
-					#if !flash8
+					#if !(flash8 || (js && easelhx))
 					if (dispatchEvents) { dispatchEvt("complete"); }
 					#end
 					if (onComplete != null) { onComplete(this); }
@@ -864,7 +887,7 @@ package com.gskinner.motion;
 			}
 			
 			if (!suppressEvents) {
-				#if !flash8
+				#if !(flash8 || (js && easelhx))
 				if (dispatchEvents) { dispatchEvt("init"); }
 				#end
 				if (onInit != null) { onInit(this); }
@@ -931,7 +954,7 @@ package com.gskinner.motion;
 		}
 		
 		/** @private **/
-		#if !flash8
+		#if !(flash8 || (js && easelhx))
 		private function dispatchEvt(name:String):Void {
 			if (hasEventListener(name)) { dispatchEvent(new Event(name)); }
 		}
