@@ -168,7 +168,7 @@ package com.gskinner.motion;
 			if (list == null) { return null; }
 			
 			for(tween in list.iterator()){
-				if(!Math.isNaN(tween.getValue(name))){ return tween;}
+				if(tween.getValue(name) != null){ return tween;}
 			}
 			return null;
 		}

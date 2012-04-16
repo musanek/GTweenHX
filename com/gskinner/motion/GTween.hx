@@ -288,7 +288,7 @@ package com.gskinner.motion;
 		#if(js && easelhx)
 		private static function tick():Void {
 		#else
-		private static function staticTick( #if !flash8 evt:Event #end ):Void {
+		public static function staticTick( #if !flash8 evt:Event #end ):Void {
 		#end
 			var t:Float = time;
 			time = Timer.stamp();
@@ -647,10 +647,10 @@ package com.gskinner.motion;
 							val = pluginArr[i].tween(this,nm,val,initVal,rangeVal,ratio,end);
 						}
 						if (!Math.isNaN(val)) {
-							Reflect.setField(target,nm,val);
+							Reflect.setProperty(target,nm,val);
 						}
 					} else {
-						Reflect.setField(target,nm,val);
+						Reflect.setProperty(target,nm,val);
 					}
 				}
 			}
@@ -756,7 +756,7 @@ package com.gskinner.motion;
 		*
 		* @param name The name of the property to return a end value for.
 		**/
-		public function getValue(name:String):Float {
+		public function getValue(name:String):Null<Float> {
 			return _values.get(name);
 		}
 		
