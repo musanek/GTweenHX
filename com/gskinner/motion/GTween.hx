@@ -640,6 +640,7 @@ package com.gskinner.motion;
 					var initVal:Float = _initValues.get(nm);
 					var rangeVal:Float = _rangeValues.get(nm);
 					var val:Float = initVal+rangeVal*ratio;
+					// trace("nm : " + nm + " - " + val);
 					 pluginArr= plugins.get(nm);
 					if (pluginArr!=null) {
 						l= pluginArr.length;
@@ -862,9 +863,9 @@ package com.gskinner.motion;
 					pluginArr = plugins.get(n);
 					var value:Float;
 					#if flash9
-						value = Reflect.hasField(target,n)?Reflect.field(target,n):Math.NaN; //this works with BlurPlugin in Flash
+						value = Reflect.hasField(target,n)?Reflect.getProperty(target,n):Math.NaN; //this works with BlurPlugin in Flash
 					#else
-						value = Reflect.field(target,n); //this works with AutoHidePlugin in CPP
+						value = Reflect.getProperty(target,n); //this works with AutoHidePlugin in CPP
 					#end
 					for(i in 0...pluginArr.length){
 						value=pluginArr[i].init(this,n,value);
@@ -874,7 +875,7 @@ package com.gskinner.motion;
 						_rangeValues.set(n,_values.get(n)-_initValues.get(n));
 					}
 				} else {
-					_initValues.set(n,Reflect.field(target,n));
+					_initValues.set(n,Reflect.getProperty(target,n));
 					_rangeValues.set(n,_values.get(n)-_initValues.get(n));
 				}
 			}
@@ -921,10 +922,10 @@ package com.gskinner.motion;
 		private function copyToHash(o1:Dynamic,o2:Hash<Dynamic>,smart:Bool=false):Hash<Dynamic> {
 			var props:Array<String>=Reflect.fields(o1);
 			for(n in props.iterator()){
-				if (smart && Reflect.field(o1, n)==null){
+				if (smart && Reflect.getProperty(o1, n)==null){
 					o2.remove(n);
 				} else {
-					o2.set(n,Reflect.field(o1,n));
+					o2.set(n,Reflect.getProperty(o1,n));
 				}
 			}
 			return o2;
@@ -944,10 +945,10 @@ package com.gskinner.motion;
 			var props:Array<String>=Reflect.fields(o1);
 			
 			for(n in props.iterator()){	
-				if (smart && Reflect.field(o1, n)==null){
+				if (smart && Reflect.getProperty(o1, n)==null){
 					Reflect.deleteField(o2,n);
 				} else {
-					Reflect.setField(o2,n,Reflect.field(o1,n));
+					Reflect.setField(o2,n,Reflect.getProperty(o1,n));
 				}
 			}
 			return o2;
